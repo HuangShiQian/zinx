@@ -8,7 +8,7 @@ import (
 	"zinx/ziface"
 	"fmt"
 	"net"
-	"io"
+
 )
 
 type Server struct {
@@ -19,6 +19,21 @@ type Server struct {
 	Port int
 	//服务器名称
 	Name string
+}
+
+//定义一个 具体的回显业务 针对type HandleFunc func(*net.TCPConn,[]byte,int) error
+func CallBackBusi(request ziface.IRequest)error  {
+	//回显业务
+	fmt.Println("【conn Handle】 CallBack..")
+	c:=request.GetConnection().GetTcpConnection()
+	buf:=request.GetData()
+	cnt:=request.GetDataLen()
+	if _,err:=c.Write(buf[:cnt]);err!=nil{
+		fmt.Println("write back err ",err)
+
+		return err
+	}
+	return nil
 }
 
 //初始化的New方法
@@ -51,17 +66,28 @@ fmt.Printf("[start] Server Linstenner at IP :%s ,Port:%d ,is starting...\n",s.IP
 		return
 	}
 
+	//生成id的累加器
+	var cid uint32
+	cid = 0
+
 	//3 阻塞等待客户端发送请求，
 	go func() {
 		for  {
 			//阻塞等待客户端请求,
-			conn,err:=listenner.Accept()
+			conn,err:=listenner.AcceptTCP()//只是针对TCP协议
 			if err!=nil {
 				fmt.Println("Accept err",err)
 				continue
 			}
 
+			//创建一个Connection对象
+			dealConn:=NewConnection(conn,cid,CallBackBusi)
+			cid++
+
 			//此时conn就已经和对端客户端连接
+			go dealConn.Start()
+
+			/*//此时conn就已经和对端客户端连接
 			go func() {
 				//4 客户端有数据请求，处理客户端业务(读、写)
 				for  {
@@ -79,7 +105,7 @@ fmt.Printf("[start] Server Linstenner at IP :%s ,Port:%d ,is starting...\n",s.IP
 						continue
 					}
 				}
-			}()
+			}()*/
 		}
 	}()
 }
@@ -96,6 +122,6 @@ func (s Server)Serve()  {
 
 	//TODO  做一些其他的扩展
 	//阻塞//告诉CPU不再需要处理的，节省cpu资源
-	select {}
+	select {} //main函数不退出
 
 }
