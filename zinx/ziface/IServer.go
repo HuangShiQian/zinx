@@ -9,6 +9,9 @@ type IServer interface {
 	Start()
 	//停止服务器
 	Stop()
-	//运行服务器
+	//运行服务器  开启业务服务方法
 	Serve()
+
+	//添加路由方法  暴露给开发者的 讓用戶添加router
+	AddRouter(router IRouter)
 }

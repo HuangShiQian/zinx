@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 
+	"zinx/config"
 )
 
 type Server struct {
@@ -19,6 +20,8 @@ type Server struct {
 	Port int
 	//服务器名称
 	Name string
+	//路由属性
+	Router ziface.IRouter
 }
 
 //定义一个 具体的回显业务 针对type HandleFunc func(*net.TCPConn,[]byte,int) error
@@ -39,10 +42,11 @@ func CallBackBusi(request ziface.IRequest)error  {
 //初始化的New方法
 func NewServer(name string)ziface.IServer  {
 	s:=&Server{
-		Name:name,
+		Name:config.GlobalObject.Name,
 		IPVersion:"tcp4",
-		IP:"0.0.0.0",
-		Port:8999,
+		IP:config.GlobalObject.Host,
+		Port:config.GlobalObject.Port,
+		Router:nil,
 	}
 
 	return s
@@ -53,6 +57,10 @@ func NewServer(name string)ziface.IServer  {
 func (s *Server)Start()  {
 fmt.Printf("[start] Server Linstenner at IP :%s ,Port:%d ,is starting...\n",s.IP,s.Port)
 	//1 创建套接字  ：得到一个TCP的addr
+	/*
+	ResolveTCPAddr将addr作为TCP地址解析并返回。
+	参数addr格式为"host:port"或"[ipv6-host%zone]:port"，解析得到网络名和端口名；net必须是"tcp"、"tcp4"或"tcp6"。
+	 */
 	addr,err:=net.ResolveTCPAddr(s.IPVersion,fmt.Sprintf("%s:%d",s.IP,s.Port))
 	if err!=nil{
 		fmt.Println("resolve tcp addr error:",err)
@@ -60,6 +68,10 @@ fmt.Printf("[start] Server Linstenner at IP :%s ,Port:%d ,is starting...\n",s.IP
 	}
 
 	//2 监听服务器地址
+	/*
+	ListenTCP在本地TCP地址laddr上声明并返回一个*TCPListener，net参数必须是"tcp"、"tcp4"、"tcp6"，
+	如果laddr的端口字段为0，函数将选择一个当前可用的端口，可以用Listener的Addr方法获得该端口。
+	 */
 	listenner, err:=net.ListenTCP(s.IPVersion,addr)
 	if err!=nil{
 		fmt.Println("listen",s.IPVersion,"err:",err)
@@ -73,7 +85,7 @@ fmt.Printf("[start] Server Linstenner at IP :%s ,Port:%d ,is starting...\n",s.IP
 	//3 阻塞等待客户端发送请求，
 	go func() {
 		for  {
-			//阻塞等待客户端请求,
+			//阻塞等待客户端请求,  AcceptTCP接收下一个呼叫，并返回一个新的*TCPConn。
 			conn,err:=listenner.AcceptTCP()//只是针对TCP协议
 			if err!=nil {
 				fmt.Println("Accept err",err)
@@ -81,7 +93,7 @@ fmt.Printf("[start] Server Linstenner at IP :%s ,Port:%d ,is starting...\n",s.IP
 			}
 
 			//创建一个Connection对象
-			dealConn:=NewConnection(conn,cid,CallBackBusi)
+			dealConn:=NewConnection(conn,cid,s.Router)//Router和連接建立聯繫
 			cid++
 
 			//此时conn就已经和对端客户端连接
@@ -116,7 +128,7 @@ func (s *Server)Stop()  {
 }
 
 //运行服务器
-func (s Server)Serve()  {
+func (s *Server)Serve()  {
 	//启动server的监听功能
 	s.Start()//并不希望他永久的阻塞
 
@@ -124,4 +136,10 @@ func (s Server)Serve()  {
 	//阻塞//告诉CPU不再需要处理的，节省cpu资源
 	select {} //main函数不退出
 
+}
+
+//添加路由方法  暴露给开发者的 [IServer裏面有 來這邊要實現]
+func (s *Server) AddRouter(router ziface.IRouter) {
+
+	s.Router = router   //左邊router是PingRouter  它實現了三個方法
 }
