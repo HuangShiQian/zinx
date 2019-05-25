@@ -57,5 +57,5 @@ func init()  {
 	}
 
 	//加载文件
-	GlobalObject.LoadConfig()
+	//GlobalObject.LoadConfig()
 }

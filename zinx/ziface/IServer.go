@@ -13,5 +13,6 @@ type IServer interface {
 	Serve()
 
 	//添加路由方法  暴露给开发者的 讓用戶添加router
-	AddRouter(router IRouter)
+	//AddRouter(router IRouter)
+	AddRouter(msgId uint32,router IRouter)
 }
