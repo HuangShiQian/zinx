@@ -15,4 +15,13 @@ type IServer interface {
 	//添加路由方法  暴露给开发者的 讓用戶添加router
 	//AddRouter(router IRouter)
 	AddRouter(msgId uint32,router IRouter)
+
+	//提供一个得到链接管理模块的方法
+	GetConnMgr() IConnManager
+
+	AddOnConnStart(hookFunc func(coon IConnection))
+	AddOnConnStop(hookFunc func(coon IConnection))
+	CallOnConnStart(conn IConnection)
+	CallOnConnStop(conn IConnection)
+
 }

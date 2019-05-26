@@ -25,6 +25,14 @@ type Server struct {
 
 	//多路由的消息管理模块
 	MsgHandler ziface.IMsgHandler
+
+	//链接管理模块
+	connMgr ziface.IConnManager
+
+	//该server创建链接之后自动调用Hook函数
+	OnConnStart func(conn ziface.IConnection)
+	//该server销毁链接之前自动调用的Hook函数
+	OnConnStop func(conn ziface.IConnection)
 }
 
 /*//定义一个 具体的回显业务 针对type HandleFunc func(*net.TCPConn,[]byte,int) error
@@ -50,6 +58,7 @@ func NewServer(name string)ziface.IServer  {
 		IP:config.GlobalObject.Host,
 		Port:config.GlobalObject.Port,
 		MsgHandler:NewMsgHandler(),
+		connMgr:NewConnManager(),
 	}
 
 	return s
@@ -59,6 +68,10 @@ func NewServer(name string)ziface.IServer  {
 //原生socket 服务器编程
 func (s *Server)Start()  {
 fmt.Printf("[start] Server Linstenner at IP :%s ,Port:%d ,is starting...\n",s.IP,s.Port)
+
+	//0 启动worker工作池
+	s.MsgHandler.StartWorkerPool()
+
 	//1 创建套接字  ：得到一个TCP的addr
 	/*
 	ResolveTCPAddr将addr作为TCP地址解析并返回。
@@ -96,7 +109,14 @@ fmt.Printf("[start] Server Linstenner at IP :%s ,Port:%d ,is starting...\n",s.IP
 			}
 
 			//创建一个Connection对象
-			dealConn:=NewConnection(conn,cid,s.MsgHandler)//Router和連接建立聯繫
+			//判断当前server链接数量是否已经最大值
+			if s.connMgr.Len() >= int(config.GlobalObject.MaxConn){
+				//当前链接已经满了
+				fmt.Println("---> Too Many Connection, MaxConn = ",config.GlobalObject.MaxConn)
+				conn.Close()
+				continue
+			}
+			dealConn:=NewConnection(s,conn,cid,s.MsgHandler)//Router和連接建立联系
 			cid++
 
 			//此时conn就已经和对端客户端连接
@@ -127,7 +147,8 @@ fmt.Printf("[start] Server Linstenner at IP :%s ,Port:%d ,is starting...\n",s.IP
 
 //停止服务器
 func (s *Server)Stop()  {
-	//TODO 将一些服务器资源进行回收...
+	//服务器停止  应该清空当前全部的链接
+	s.connMgr.ClearConn()
 }
 
 //运行服务器
@@ -147,4 +168,32 @@ func (s *Server) AddRouter(msgId uint32,router ziface.IRouter) {
 	//s.Router = router   //左邊router是PingRouter  它實現了三個方法
 	s.MsgHandler.AddRouter(msgId,router)
 	fmt.Println("Add Router SUCC!! msgID = ",msgId)
+}
+
+//提供一个得到链接管理模块的方法
+func (s *Server)GetConnMgr() ziface.IConnManager{
+	return s.connMgr
+}
+
+//注册 创建链接之后 调用的 Hook函数 的方法
+func (s *Server)AddOnConnStart(hookFunc func(coon ziface.IConnection)){
+	s.OnConnStart=hookFunc
+}
+//注册 销毁链接之前调用的Hook函数 的方法
+func (s *Server)AddOnConnStop(hookFunc func(coon ziface.IConnection)){
+	s.OnConnStop=hookFunc
+}
+//调用 创建链接之后的HOOK函数的方法
+func (s *Server)CallOnConnStart(conn ziface.IConnection){
+	if s.OnConnStart!=nil{
+		fmt.Println("---> Call OnConnStart()...")
+		s.OnConnStart(conn)
+	}
+}
+//调用 销毁链接之前调用的HOOk函数的方法
+func (s *Server)CallOnConnStop(conn ziface.IConnection){
+	if s.OnConnStop!=nil{
+		fmt.Println("---> Call OnConnStop()...")
+		s.OnConnStop(conn)
+	}
 }

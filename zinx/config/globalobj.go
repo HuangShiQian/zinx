@@ -21,6 +21,10 @@ type GlobalObj struct {
 	 Version string  //当前框架的版本号
 	MaxPackageSize  uint32   //每次Read一次的最大长度
 
+	WorkerPoolSize uint32 //当前服务器要开启多少了worker Goroutine
+	MaxWorkerTaskLen uint32 //每个worker的对应的消息对象 允许缓存的最大任务Request数量
+	MaxConn uint32  //当前server的最大链接数量
+
 }
 
 //定义一个全局的对外的配置的对象
@@ -40,6 +44,8 @@ func (g *GlobalObj)LoadConfig()  {
 	if err!=nil {
 		panic(err)
 	}
+
+	fmt.Println("config = %v", g)  //打印出配置信息
 }
 
 //只要import config包 当前模块 就会执行init方法 加载配置文件
@@ -53,9 +59,13 @@ func init()  {
 		Port:8999,
 		Version:"V0.4",
 		MaxPackageSize:512,
+		WorkerPoolSize:10,
+		MaxWorkerTaskLen:4096,
+		MaxConn:1000,
 
 	}
 
+
 	//加载文件
-	//GlobalObject.LoadConfig()
+	GlobalObject.LoadConfig()
 }
