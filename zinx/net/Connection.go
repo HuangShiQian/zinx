@@ -8,6 +8,7 @@ import (
 	"io"
 	"errors"
 	"zinx/config"
+	"sync"
 )
 
 //具体的TCP链接模块
@@ -38,6 +39,12 @@ type Connection struct {
 
 	//创建一个Channel  用来Reader通知Writer conn已经关闭，需要退出的消息
 	writeExitChan chan bool
+
+	//当前链接模块所具备的一些属性集合
+	property map[string]interface{}
+
+	//保护当前property的锁
+	propertyLock sync.RWMutex
 }
 
 /*
@@ -53,6 +60,7 @@ func NewConnection(server ziface.IServer, conn *net.TCPConn,connID uint32,handle
 		isClosed:false,
 		msgChan:make(chan []byte),//初始化Reader Writer通信的Channel
 		writeExitChan:make(chan bool),//初始化通知write chan 关闭的chan
+		property:make(map[string]interface{}),
 	}
 	//当已经成功创建一个链接的时候，添加到链接管理器中
 	c.server.GetConnMgr().Add(c)
@@ -244,4 +252,33 @@ func (c *Connection)Send(msgId uint32,msgData []byte) error  {
 	c.msgChan<-binaryMsg
 
 	return nil
+}
+
+//设置属性
+func (c *Connection)SetProperty(key string,value interface{}){
+	//加锁
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+	//添加一个链接属性
+	c.property[key]=value
+}
+//获取属性
+func (c *Connection)GetProperty(key string)(interface{},error){
+	//加读锁
+	c.propertyLock.RLock()
+	defer c.propertyLock.RUnlock()//不要犯关错锁的错误
+	//读取属性
+	if value,ok:=c.property[key];ok{
+		return value,nil
+	}else {
+		return nil,errors.New("no property found  "+key)
+	}
+}
+//删除属性
+func (c *Connection)RemoveProperty(key string){
+	//加锁
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+
+	delete(c.property,key)
 }
