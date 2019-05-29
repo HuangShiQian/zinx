@@ -186,7 +186,7 @@ func (m *AOIManager)AddToGridByPos(pID int,x,y float32)  {
 }
 
 //通过坐标 把一个player从一个格子中删除
-func (m *AOIManager)RemoteFromGridbyPos(pID int,x,y float32)  {
+func (m *AOIManager)RemoveFromGridbyPos(pID int,x,y float32)  {
 	gID:=m.GetGidByPos(x,y)
 
 	grid := m.grids[gID]
