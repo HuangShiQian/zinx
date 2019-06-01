@@ -91,3 +91,18 @@ func (wm *WorldManager)GetAllPlayers()[]*Player  {
 	}
 	return players
 }
+
+
+//获取一个格子中的全部玩家集合
+func (wm *WorldManager)GetPlayerByGid(gid int)[]*Player  {
+	//通过gid 获取对应的格子中素有playerID
+	pids:=wm.AoiMngr.GetPidsByGid(gid)
+
+	//通过pids 得到对应的players
+	players:=make([]*Player,0,len(pids))
+	for _,pid:=range pids{
+		players=append(players,wm.Players[int32(pid)])
+	}
+
+	return players
+}
